@@ -24,25 +24,31 @@ class VercelPathFixMiddleware:
             if path == "/api/index.py" or path == "/api/index":
                 headers = dict(scope.get("headers", []))
                 
-                # Check standard Vercel headers for the original request path
-                x_invoke = headers.get(b"x-invoke-path", b"").decode("utf-8", errors="ignore")
-                x_original = headers.get(b"x-original-path", b"").decode("utf-8", errors="ignore")
-                x_now_route = headers.get(b"x-now-route-matches", b"").decode("utf-8", errors="ignore")
-                x_vercel_forwarded_path = headers.get(b"x-vercel-forwarded-path", b"").decode("utf-8", errors="ignore")
+                # Check for our custom query parameter injected by Vercel rewrite
+                query_string = scope.get("query_string", b"").decode("utf-8", errors="ignore")
+                import urllib.parse
+                qs = urllib.parse.parse_qs(query_string)
+                if "__vercel_path" in qs:
+                    scope["path"] = f"/api/{qs['__vercel_path'][0]}"
+                else:
+                    # Check standard Vercel headers for the original request path
+                    x_invoke = headers.get(b"x-invoke-path", b"").decode("utf-8", errors="ignore")
+                    x_original = headers.get(b"x-original-path", b"").decode("utf-8", errors="ignore")
+                    x_now_route = headers.get(b"x-now-route-matches", b"").decode("utf-8", errors="ignore")
+                    x_vercel_forwarded_path = headers.get(b"x-vercel-forwarded-path", b"").decode("utf-8", errors="ignore")
 
-                if x_invoke and x_invoke != "/api/index.py":
-                    scope["path"] = x_invoke
-                elif x_original and x_original != "/api/index.py":
-                    scope["path"] = x_original
-                elif x_vercel_forwarded_path and x_vercel_forwarded_path != "/api/index.py":
-                    scope["path"] = x_vercel_forwarded_path
-                elif x_now_route:
-                    # x-now-route-matches usually looks like 1=stocks
-                    import urllib.parse
-                    route_matches = urllib.parse.parse_qs(x_now_route)
-                    if "1" in route_matches:
-                        match_val = route_matches["1"][0]
-                        scope["path"] = f"/api/{match_val}"
+                    if x_invoke and x_invoke != "/api/index.py":
+                        scope["path"] = x_invoke
+                    elif x_original and x_original != "/api/index.py":
+                        scope["path"] = x_original
+                    elif x_vercel_forwarded_path and x_vercel_forwarded_path != "/api/index.py":
+                        scope["path"] = x_vercel_forwarded_path
+                    elif x_now_route:
+                        # x-now-route-matches usually looks like 1=stocks
+                        route_matches = urllib.parse.parse_qs(x_now_route)
+                        if "1" in route_matches:
+                            match_val = route_matches["1"][0]
+                            scope["path"] = f"/api/{match_val}"
 
         await self.app(scope, receive, send)
 
