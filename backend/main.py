@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
@@ -655,13 +656,24 @@ async def chat_endpoint(req: ChatQuery):
     return {"status": "success", "response": res, "speed": speed}
 
 @app.get("/")
+@app.get("/index.html")
 def read_root():
+    dist_index = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist", "index.html"))
+    if os.path.exists(dist_index):
+        return FileResponse(dist_index)
     return {"message": "Aura AI ML Service is running live with Yahoo Finance."}
-
-from fastapi import Request
 
 @app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"])
 async def catch_all(request: Request, full_path: str):
+    dist_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
+    file_path = os.path.normpath(os.path.join(dist_dir, full_path))
+    if not full_path.startswith("api/") and os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+
+    dist_index = os.path.join(dist_dir, "index.html")
+    if not full_path.startswith("api/") and os.path.exists(dist_index):
+        return FileResponse(dist_index)
+
     return {
         "error": "Route not found in FastAPI",
         "received_path": full_path,
@@ -669,3 +681,5 @@ async def catch_all(request: Request, full_path: str):
         "method": request.method,
         "headers": dict(request.headers)
     }
+
+
