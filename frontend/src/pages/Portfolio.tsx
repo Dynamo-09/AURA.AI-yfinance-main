@@ -95,7 +95,7 @@ export default function Portfolio() {
               <button onClick={() => setTimeframe('Weekly')} className={`px-3 py-1 text-[10px] font-label uppercase rounded-full transition-colors ${timeframe === 'Weekly' ? 'bg-surface-container-high text-secondary shadow-sm drop-shadow-md' : 'text-on-surface-variant hover:text-on-surface'}`}>Weekly</button>
             </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-[440px]">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-auto md:h-[440px]">
             {/* IT */}
             <div className={`col-span-2 row-span-2 border rounded-xl p-6 flex flex-col justify-between group transition-all cursor-pointer ${currentHeatmap.it.startsWith('+') ? 'bg-secondary/10 border-secondary/20 hover:bg-secondary/20 hover:shadow-[0_0_15px_rgba(0,227,253,0.1)]' : 'bg-error/10 border-error/20 hover:bg-error/20'}`}>
               <div className="flex justify-between items-start">

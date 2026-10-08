@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import VoiceAssistant from './VoiceAssistant';
 import Walkthrough from './Walkthrough';
-import profilePic from '../assets/profile.jpg';
+import { useAuth } from '../AuthProvider';
+import { supabase } from '../supabase';
 
 /* --- Duplicate interfaces for simplicity --- */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -69,6 +70,14 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const path = location.pathname;
+  
+  const { session, profile, updateProfile, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && !session) {
+      navigate('/login');
+    }
+  }, [loading, session, navigate]);
 
   const [appState, setAppState] = useState<'SCANNING' | 'ACTIVE'>('SCANNING');
   const [availableStocks, setAvailableStocks] = useState<Array<{ticker: string, name: string}>>([]);
@@ -76,15 +85,66 @@ export default function Layout() {
   
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const [stockData, setStockData] = useState<StockData | null>(null);
   const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null);
   const [dashboardSummary, setDashboardSummary] = useState<DashboardSummary | null>(null);
   
-  const [currency, setCurrency] = useState(() => localStorage.getItem('currency') || 'USD');
-  const [userName, setUserName] = useState(() => localStorage.getItem('userName') || 'Pratyay Banerjee');
-  const [email, setEmail] = useState(() => localStorage.getItem('email') || 'user@aura.ai');
-  const [profilePicUrl, setProfilePicUrl] = useState(() => localStorage.getItem('profilePicUrl') || profilePic);
+  const [currency, setCurrency] = useState('USD');
+  const [userName, setUserName] = useState('');
+  const [email, setEmail] = useState('');
+  const [profilePicUrl, setProfilePicUrl] = useState('');
+  const [theme, setTheme] = useState('dark');
+  const [chartColors, setChartColors] = useState('standard');
+  const [voiceFeedback, setVoiceFeedback] = useState(true);
+  const [voiceType, setVoiceType] = useState('female-en-in');
+  const [defaultMarket, setDefaultMarket] = useState('nasdaq');
+  const [defaultIndicators, setDefaultIndicators] = useState<string[]>(['rsi', 'macd']);
+  const [refreshRate, setRefreshRate] = useState('realtime');
+  const [aiModel, setAiModel] = useState('oracle-v4');
+
+  const profileLoaded = useRef(false);
+
+  useEffect(() => {
+    if (profile && !profileLoaded.current) {
+      profileLoaded.current = true;
+      setCurrency(profile.currency || 'USD');
+      setUserName(`${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username || 'User');
+      setEmail(session?.user?.email || '');
+      setProfilePicUrl(profile.avatar_url || '');
+      setTheme(profile.theme || 'dark');
+      setChartColors(profile.chart_colors || 'standard');
+      setVoiceFeedback(profile.voice_feedback ?? true);
+      setVoiceType(profile.voice_type || 'female-en-in');
+      setDefaultMarket(profile.default_market || 'nasdaq');
+      setDefaultIndicators(profile.default_indicators || ['rsi', 'macd']);
+      setRefreshRate(profile.refresh_rate || 'realtime');
+      setAiModel(profile.ai_model || 'oracle-v4');
+    }
+  }, [profile, session]);
+
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    if (profileLoaded.current && profile) {
+      updateProfile({
+        currency,
+        theme,
+        chart_colors: chartColors,
+        voice_feedback: voiceFeedback,
+        voice_type: voiceType,
+        default_market: defaultMarket,
+        default_indicators: defaultIndicators,
+        refresh_rate: refreshRate,
+        ai_model: aiModel,
+        avatar_url: profilePicUrl
+      });
+    }
+  }, [currency, theme, chartColors, voiceFeedback, voiceType, defaultMarket, defaultIndicators, refreshRate, aiModel, profilePicUrl]);
 
   const CURRENCY_RATES: Record<string, { symbol: string; rate: number }> = {
     'USD': { symbol: '$', rate: 1 },
@@ -99,37 +159,7 @@ export default function Layout() {
     const rateObj = CURRENCY_RATES[currency] || CURRENCY_RATES['USD'];
     return `${rateObj.symbol}${(value * rateObj.rate).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
   };
-  
-  // Settings States
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
-  const [chartColors, setChartColors] = useState(() => localStorage.getItem('chartColors') || 'standard');
-  const [voiceFeedback, setVoiceFeedback] = useState(() => {
-    const val = localStorage.getItem('voiceFeedback');
-    return val !== null ? val === 'true' : true;
-  });
-  const [voiceType, setVoiceType] = useState(() => localStorage.getItem('voiceType') || 'female-en-in');
-  const [defaultMarket, setDefaultMarket] = useState(() => localStorage.getItem('defaultMarket') || 'nasdaq');
-  const [defaultIndicators, setDefaultIndicators] = useState<string[]>(() => {
-    const val = localStorage.getItem('defaultIndicators');
-    return val ? JSON.parse(val) : ['rsi', 'macd'];
-  });
-  const [refreshRate, setRefreshRate] = useState(() => localStorage.getItem('refreshRate') || 'realtime');
-  const [aiModel, setAiModel] = useState(() => localStorage.getItem('aiModel') || 'oracle-v4');
 
-  useEffect(() => {
-    localStorage.setItem('currency', currency);
-    localStorage.setItem('userName', userName);
-    localStorage.setItem('email', email);
-    localStorage.setItem('profilePicUrl', profilePicUrl);
-    localStorage.setItem('theme', theme);
-    localStorage.setItem('chartColors', chartColors);
-    localStorage.setItem('voiceFeedback', String(voiceFeedback));
-    localStorage.setItem('voiceType', voiceType);
-    localStorage.setItem('defaultMarket', defaultMarket);
-    localStorage.setItem('defaultIndicators', JSON.stringify(defaultIndicators));
-    localStorage.setItem('refreshRate', refreshRate);
-    localStorage.setItem('aiModel', aiModel);
-  }, [currency, userName, email, profilePicUrl, theme, chartColors, voiceFeedback, voiceType, defaultMarket, defaultIndicators, refreshRate, aiModel]);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -186,7 +216,9 @@ export default function Layout() {
       try {
           const res = await fetch(`/api/stock/${encodeURIComponent(stock)}`);
           if (res.ok) {
-              setStockData(await res.json());
+              const data = await res.json();
+              if (data.status === "error") throw new Error(data.message || "Failed to fetch stock data");
+              setStockData(data);
           } else {
               throw new Error("Failed to fetch stock data");
           }
@@ -253,8 +285,11 @@ export default function Layout() {
              // Fallback for visual testing
              setAvailableStocks([{ticker: "AAPL", name: "Apple Inc."}]);
              setSelectedStock('AAPL');
-             fetchPortfolioData();
-             fetchDashboardSummary();
+             await Promise.all([
+                 fetchPortfolioData(),
+                 fetchDashboardSummary(),
+                 fetchStockSpecificData('AAPL')
+             ]);
              setAppState('ACTIVE');
          }
      };
@@ -367,33 +402,39 @@ export default function Layout() {
 
   return (
     <>
-      <aside className="h-screen w-64 fixed left-0 top-0 bg-[#090e19] flex flex-col py-8 shadow-[0px_0px_15px_rgba(0,215,240,0.12)] z-50">
-        <div className="px-6 mb-12">
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+      <aside className={`h-screen w-64 fixed left-0 top-0 bg-[#090e19] flex flex-col py-8 shadow-[0px_0px_15px_rgba(0,215,240,0.12)] z-50 transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+        <div className="px-6 mb-12 flex justify-between items-center">
           <h1 className="text-2xl font-bold tracking-tight text-[#00e3fd] font-headline">Aura.AI</h1>
           <p className="text-[10px] font-label uppercase tracking-widest text-on-surface-variant mt-1 overflow-hidden text-ellipsis whitespace-nowrap">Welcome, {userName}</p>
         </div>
         <nav className="flex-1 space-y-1">
-          <Link id="tour-nav-dashboard" to="/dashboard" className={`flex items-center px-6 py-4 transition-all duration-300 ${path.includes('/dashboard') ? 'text-[#00e3fd] border-r-2 border-[#00e3fd] bg-[#191f2e]' : 'text-[#a6abba] hover:bg-[#1f2636] hover:text-[#89acff]'}`}>
+          <Link onClick={() => setIsMobileMenuOpen(false)} id="tour-nav-dashboard" to="/dashboard" className={`flex items-center px-6 py-4 transition-all duration-300 ${path.includes('/dashboard') ? 'text-[#00e3fd] border-r-2 border-[#00e3fd] bg-[#191f2e]' : 'text-[#a6abba] hover:bg-[#1f2636] hover:text-[#89acff]'}`}>
             <span className="material-symbols-outlined mr-4">dashboard</span>
             <span className="font-body text-sm font-medium">Command Center</span>
           </Link>
-          <Link id="tour-nav-analysis" to="/analysis" className={`flex items-center px-6 py-4 transition-all duration-300 ${path.includes('/analysis') ? 'text-[#00e3fd] border-r-2 border-[#00e3fd] bg-[#191f2e]' : 'text-[#a6abba] hover:bg-[#1f2636] hover:text-[#89acff]'}`}>
+          <Link onClick={() => setIsMobileMenuOpen(false)} id="tour-nav-analysis" to="/analysis" className={`flex items-center px-6 py-4 transition-all duration-300 ${path.includes('/analysis') ? 'text-[#00e3fd] border-r-2 border-[#00e3fd] bg-[#191f2e]' : 'text-[#a6abba] hover:bg-[#1f2636] hover:text-[#89acff]'}`}>
             <span className="material-symbols-outlined mr-4">query_stats</span>
             <span className="font-body text-sm font-medium">Market Pulse</span>
           </Link>
-          <Link id="tour-nav-ai-scanner" to="/ai-scanner" className={`flex items-center px-6 py-4 transition-all duration-300 ${path.includes('/ai-scanner') ? 'text-[#00e3fd] border-r-2 border-[#00e3fd] bg-[#191f2e]' : 'text-[#a6abba] hover:bg-[#1f2636] hover:text-[#89acff]'}`}>
+          <Link onClick={() => setIsMobileMenuOpen(false)} id="tour-nav-ai-scanner" to="/ai-scanner" className={`flex items-center px-6 py-4 transition-all duration-300 ${path.includes('/ai-scanner') ? 'text-[#00e3fd] border-r-2 border-[#00e3fd] bg-[#191f2e]' : 'text-[#a6abba] hover:bg-[#1f2636] hover:text-[#89acff]'}`}>
             <span className="material-symbols-outlined mr-4">auto_awesome</span>
             <span className="font-body text-sm font-medium">AI Scanner</span>
           </Link>
-          <Link id="tour-nav-neural" to="/neural-intelligence" className={`flex items-center px-6 py-4 transition-all duration-300 ${path.includes('/neural-intelligence') ? 'text-[#00e3fd] border-r-2 border-[#00e3fd] bg-[#191f2e]' : 'text-[#a6abba] hover:bg-[#1f2636] hover:text-[#89acff]'}`}>
+          <Link onClick={() => setIsMobileMenuOpen(false)} id="tour-nav-neural" to="/neural-intelligence" className={`flex items-center px-6 py-4 transition-all duration-300 ${path.includes('/neural-intelligence') ? 'text-[#00e3fd] border-r-2 border-[#00e3fd] bg-[#191f2e]' : 'text-[#a6abba] hover:bg-[#1f2636] hover:text-[#89acff]'}`}>
             <span className="material-symbols-outlined mr-4">psychology</span>
             <span className="font-body text-sm font-medium">Neural Intelligence</span>
           </Link>
-          <Link id="tour-nav-aura-assistant" to="/aura-assistant" className={`flex items-center px-6 py-4 transition-all duration-300 ${path.includes('/aura-assistant') ? 'text-[#00e3fd] border-r-2 border-[#00e3fd] bg-[#191f2e]' : 'text-[#a6abba] hover:bg-[#1f2636] hover:text-[#89acff]'}`}>
+          <Link onClick={() => setIsMobileMenuOpen(false)} id="tour-nav-aura-assistant" to="/aura-assistant" className={`flex items-center px-6 py-4 transition-all duration-300 ${path.includes('/aura-assistant') ? 'text-[#00e3fd] border-r-2 border-[#00e3fd] bg-[#191f2e]' : 'text-[#a6abba] hover:bg-[#1f2636] hover:text-[#89acff]'}`}>
             <span className="material-symbols-outlined mr-4">support_agent</span>
             <span className="font-body text-sm font-medium">Aura Assistant</span>
           </Link>
-          <Link id="tour-nav-portfolio" to="/portfolio" className={`flex items-center px-6 py-4 transition-all duration-300 ${path.includes('/portfolio') ? 'text-[#00e3fd] border-r-2 border-[#00e3fd] bg-[#191f2e]' : 'text-[#a6abba] hover:bg-[#1f2636] hover:text-[#89acff]'}`}>
+          <Link onClick={() => setIsMobileMenuOpen(false)} id="tour-nav-portfolio" to="/portfolio" className={`flex items-center px-6 py-4 transition-all duration-300 ${path.includes('/portfolio') ? 'text-[#00e3fd] border-r-2 border-[#00e3fd] bg-[#191f2e]' : 'text-[#a6abba] hover:bg-[#1f2636] hover:text-[#89acff]'}`}>
             <span className="material-symbols-outlined mr-4">account_balance_wallet</span>
             <span className="font-body text-sm font-medium">Portfolio</span>
           </Link>
@@ -421,21 +462,21 @@ export default function Layout() {
                     if (action === 'CHANGE_CURRENCY') setCurrency(payload);
                     if (action === 'NAVIGATE') navigate(payload);
                     if (action === 'DELETE_ACCOUNT') {
-                       localStorage.clear();
-                       localStorage.setItem('theme', 'dark');
-                       setTheme('dark');
-                       navigate('/login');
+                       supabase.auth.signOut().then(() => {
+                         setTheme('dark');
+                         navigate('/login');
+                       });
                     }
                     if (action === 'LOGOUT') {
-                       localStorage.removeItem('isLoggedIn');
-                       localStorage.setItem('theme', 'dark');
-                       setTheme('dark');
-                       navigate('/login');
+                       supabase.auth.signOut().then(() => {
+                         setTheme('dark');
+                         navigate('/login');
+                       });
                     }
                 }}
             />
           </div>
-          <Link id="tour-nav-settings" to="/settings" className={`flex items-center px-6 py-4 transition-all duration-300 ${path.includes('/settings') ? 'text-[#00e3fd] border-r-2 border-[#00e3fd] bg-[#191f2e]' : 'text-[#a6abba] hover:bg-[#1f2636] hover:text-[#89acff]'}`}>
+          <Link onClick={() => setIsMobileMenuOpen(false)} id="tour-nav-settings" to="/settings" className={`flex items-center px-6 py-4 transition-all duration-300 ${path.includes('/settings') ? 'text-[#00e3fd] border-r-2 border-[#00e3fd] bg-[#191f2e]' : 'text-[#a6abba] hover:bg-[#1f2636] hover:text-[#89acff]'}`}>
             <span className="material-symbols-outlined mr-4">settings</span>
             <span className="font-body text-sm font-medium">Settings</span>
           </Link>
@@ -450,10 +491,13 @@ export default function Layout() {
         </div>
       </aside>
 
-      <header className="fixed top-0 right-0 w-[calc(100%-16rem)] z-40 bg-[#090e19]/80 backdrop-blur-xl flex items-center justify-between px-8 h-20 border-b border-outline-variant/10">
+      <header className="fixed top-0 right-0 w-full md:w-[calc(100%-16rem)] z-30 bg-[#090e19]/80 backdrop-blur-xl flex items-center justify-between px-4 md:px-8 h-20 border-b border-outline-variant/10">
         <div className="flex items-center flex-1 max-w-xl">
+          <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden mr-4 text-on-surface-variant hover:text-secondary flex-shrink-0">
+            <span className="material-symbols-outlined text-2xl">menu</span>
+          </button>
           <div id="tour-search" className="relative w-full group">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
+            <span className="material-symbols-outlined absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
             <input 
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setShowSearchResults(true); }}
@@ -479,8 +523,8 @@ export default function Layout() {
           </div>
         </div>
         
-        <div className="flex items-center space-x-6">
-          <div id="tour-stock-selector" className="relative">
+        <div className="flex items-center space-x-2 md:space-x-6">
+          <div id="tour-stock-selector" className="relative hidden md:block">
               <select 
                   value={selectedStock} 
                   onChange={handleStockSelection}
@@ -493,7 +537,7 @@ export default function Layout() {
               <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[16px] text-on-surface-variant pointer-events-none">expand_more</span>
           </div>
           
-          <div id="tour-currency-changer" className="relative">
+          <div id="tour-currency-changer" className="relative hidden md:block">
               <select 
                   value={currency} 
                   onChange={(e) => setCurrency(e.target.value)}
@@ -506,20 +550,24 @@ export default function Layout() {
               <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[16px] text-on-surface-variant pointer-events-none">expand_more</span>
           </div>
           
-          <button className="text-[#a6abba] hover:text-[#00e3fd] transition-colors">
+          <button className="text-[#a6abba] hover:text-[#00e3fd] transition-colors hidden md:block">
             <span className="material-symbols-outlined">notifications</span>
           </button>
           
-          <div className="w-[1px] h-8 bg-outline-variant/30"></div>
+          <div className="w-[1px] h-8 bg-outline-variant/30 hidden md:block"></div>
           
           <div className="relative">
             <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => setShowProfileMenu(!showProfileMenu)}>
-              <div className="text-right">
+              <div className="text-right hidden sm:block">
                 <p className="text-xs font-bold text-on-surface group-hover:text-secondary transition-colors">{userName}</p>
                 <p className="text-[10px] text-on-surface-variant uppercase tracking-tighter">User</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-surface-container-highest flex items-center justify-center overflow-hidden border border-secondary/20 group-hover:border-secondary transition-colors">
-                <img alt="Aura User" className="h-full w-full object-cover" src={profilePicUrl}/>
+                {profilePicUrl ? (
+                  <img alt="Aura User" className="h-full w-full object-cover" src={profilePicUrl}/>
+                ) : (
+                  <span className="material-symbols-outlined text-on-surface-variant text-[24px]">person</span>
+                )}
               </div>
             </div>
 
@@ -545,7 +593,7 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className="ml-64 pt-28 p-8 min-h-screen pb-12 relative overflow-x-hidden">
+      <main className="ml-0 md:ml-64 pt-20 md:pt-28 p-4 md:p-8 min-h-screen pb-12 relative overflow-x-hidden">
         {showLogoutWarning && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center">
              <div className="bg-surface-container border border-outline-variant/20 rounded-2xl p-8 max-w-md w-full shadow-2xl">
@@ -563,11 +611,11 @@ export default function Layout() {
                    </button>
                    <button 
                      onClick={() => {
-                       localStorage.removeItem('isLoggedIn');
-                       localStorage.setItem('theme', 'dark');
-                       setTheme('dark');
-                       setShowLogoutWarning(false);
-                       navigate('/login');
+                       supabase.auth.signOut().then(() => {
+                         setTheme('dark');
+                         setShowLogoutWarning(false);
+                         navigate('/login');
+                       });
                      }}
                      className="flex-1 py-3 bg-error text-white rounded-lg font-bold text-sm shadow-[0_0_15px_rgba(255,0,0,0.3)] hover:scale-[1.02] transition-transform"
                    >

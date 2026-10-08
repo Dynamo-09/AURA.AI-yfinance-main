@@ -5,7 +5,7 @@ import type { OutletContextData } from '../components/Layout';
 
 export default function AiScanner() {
   const { stockData, triggerTrade, availableStocks, selectedStock, setSelectedStock, formatPrice, chartColors } = useOutletContext<OutletContextData>();
-  const [investmentAmount, setInvestmentAmount] = useState(25000);
+  const [investmentAmount, setInvestmentAmount] = useState<number | string>(25000);
 
   let chartUpColor = '#00e3fd'; // standard (secondary)
   let chartDownColor = '#ff716c'; // standard (error)
@@ -32,24 +32,43 @@ export default function AiScanner() {
   };
 
   const selectedPrediction = getPrediction(selectedStock);
-  const currentYear = new Date().getFullYear();
   const basePrice = stockData?.current_price || 300;
   
-  const chartData = [
-    { label: `MON 08, ${currentYear}`, historicalValue: basePrice * 0.95 },
-    { label: `TUE 09, ${currentYear}`, historicalValue: basePrice * 0.98 },
-    { label: `WED 10, ${currentYear}`, historicalValue: basePrice * 0.92 },
-    { label: `THU 11, ${currentYear}`, historicalValue: basePrice * 0.97 },
-    { label: `FRI 12, ${currentYear}`, historicalValue: basePrice, predictedValue: basePrice },
-    { label: `SAT 13, ${currentYear} (F)`, predictedValue: basePrice * (1 + selectedPrediction.gain/100 * 0.5) },
-    { label: `SUN 14, ${currentYear} (F)`, predictedValue: basePrice * (1 + selectedPrediction.gain/100) }
-  ];
+  const chartData = Array.from({ length: 12 }).map((_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() + (index - 4));
+    
+    const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    const dayName = days[date.getDay()];
+    const dayNum = date.getDate().toString().padStart(2, '0');
+    const year = date.getFullYear();
+    
+    let label = `${dayName} ${dayNum}, ${year}`;
+    let historicalValue, predictedValue;
+
+    if (index < 4) {
+      const mults = [0.95, 0.98, 0.92, 0.97];
+      historicalValue = basePrice * mults[index];
+    } else if (index === 4) {
+      historicalValue = basePrice;
+      predictedValue = basePrice;
+    } else {
+      label += ' (F)';
+      const dayOffset = index - 4;
+      const progress = dayOffset / 7; // Linear progression over 7 days
+      predictedValue = basePrice * (1 + (selectedPrediction.gain / 100) * progress);
+    }
+
+    return { label, historicalValue, predictedValue };
+  });
+
+  const todayLabel = chartData[4].label;
 
   const chartColor = selectedPrediction.isPositive ? chartUpColor : chartDownColor;
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex gap-8">
+      <div className="flex flex-col lg:flex-row gap-8">
         {/* Left Column: Charting & Main Insights */}
         <div className="flex-[2.5] flex flex-col gap-8">
           {/* Header Stack */}
@@ -81,7 +100,7 @@ export default function AiScanner() {
             </div>
             <div className="h-96 w-full relative pt-12 text-xs">
               <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <AreaChart data={chartData} margin={{ top: 30, right: 30, left: 0, bottom: 0 }}>
                       <defs>
                           <linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor={chartColor} stopOpacity={0.4}/>
@@ -94,7 +113,7 @@ export default function AiScanner() {
                       <Tooltip contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: `1px solid ${chartColor}4d`, borderRadius: '8px', color: '#fff' }} formatter={(value: number) => [formatPrice(value), 'Price']} isAnimationActive={false} />
                       <Area type="monotone" dataKey="historicalValue" stroke="#a6abba" strokeWidth={2} strokeDasharray="4 4" fill="transparent" isAnimationActive={true} />
                       <Area type="monotone" dataKey="predictedValue" stroke={chartColor} strokeWidth={chartStrokeWidth} fill="url(#colorForecast)" isAnimationActive={true} />
-                      <ReferenceLine x={`FRI 12, ${currentYear}`} stroke="#334155" strokeDasharray="3 3" label={{ position: 'top', value: 'PREDICTION', fill: '#94a3b8', fontSize: 10 }} />
+                      <ReferenceLine x={todayLabel} stroke="#334155" strokeDasharray="3 3" label={{ position: 'top', value: 'PREDICTION', fill: '#94a3b8', fontSize: 10 }} />
                       <Brush dataKey="label" height={30} stroke={chartColor} fill="rgba(15, 23, 42, 0.8)" tickFormatter={() => ''} travellerWidth={10} />
                   </AreaChart>
               </ResponsiveContainer>
@@ -102,7 +121,7 @@ export default function AiScanner() {
           </div>
 
           {/* Strategy Bento Row */}
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-surface-container-low rounded-xl p-6 border-l-2 border-primary/40 shadow-lg shadow-black/20">
               <div className="flex justify-between items-start mb-4">
                 <h4 className="text-xs uppercase tracking-widest font-black text-on-surface-variant">Intraday</h4>
@@ -153,7 +172,7 @@ export default function AiScanner() {
                     className="w-full bg-surface-container-highest border-none rounded-xl p-4 text-xl font-bold font-headline text-secondary outline-none focus:ring-1 focus:ring-secondary/50" 
                     type="number" 
                     value={investmentAmount}
-                    onChange={(e) => setInvestmentAmount(Number(e.target.value))}
+                    onChange={(e) => setInvestmentAmount(e.target.value === '' ? '' : Number(e.target.value))}
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-bold text-xs uppercase">{formatPrice(1).replace(/[\d.,]/g, '')}</span>
                 </div>
@@ -170,7 +189,7 @@ export default function AiScanner() {
               <div className="space-y-3 py-4">
                 <div className="flex justify-between"><span className="text-sm text-on-surface-variant">Synthesized Entry</span><span className="text-sm font-bold">{stockData?.current_price ? formatPrice(stockData.current_price) : '---'}</span></div>
                 <div className="flex justify-between"><span className="text-sm text-on-surface-variant">AI Stop Loss</span><span className="text-sm font-bold text-error">{stockData?.current_price ? formatPrice(stockData.current_price * (selectedPrediction.isPositive ? 0.95 : 1.05)) : '---'}</span></div>
-                <div className="flex justify-between"><span className="text-sm text-on-surface-variant">Projected P/L</span><span className={`text-sm font-bold ${selectedPrediction.isPositive ? 'text-secondary' : 'text-error'}`}>{selectedPrediction.isPositive ? '+' : '-'}{formatPrice(investmentAmount * 5 * Math.abs(selectedPrediction.gain) / 100)}</span></div>
+                <div className="flex justify-between"><span className="text-sm text-on-surface-variant">Projected P/L</span><span className={`text-sm font-bold ${selectedPrediction.isPositive ? 'text-secondary' : 'text-error'}`}>{selectedPrediction.isPositive ? '+' : '-'}{formatPrice(Number(investmentAmount) * 5 * Math.abs(selectedPrediction.gain) / 100)}</span></div>
               </div>
               <button onClick={() => triggerTrade(selectedStock)} className="w-full py-4 bg-gradient-to-r from-primary to-primary-container text-on-primary-container font-black uppercase tracking-widest text-sm rounded-full hover:shadow-[0_0_20px_rgba(137,172,255,0.4)] transition-all active:scale-95">
                 Execute Order Cluster

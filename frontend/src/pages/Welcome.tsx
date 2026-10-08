@@ -3,8 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import heroImage from '../assets/picture.jpeg';
 
+import { useAuth } from '../AuthProvider';
+
 const Welcome: React.FC = () => {
   const navigate = useNavigate();
+  const { session } = useAuth();
   const [typedText1, setTypedText1] = useState('');
   const [typedText2, setTypedText2] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -13,7 +16,7 @@ const Welcome: React.FC = () => {
     setIsLoading(true);
     setTimeout(() => {
         setIsLoading(false);
-        if (localStorage.getItem('isLoggedIn') === 'true') {
+        if (session) {
             navigate(path);
         } else {
             navigate('/login');
@@ -344,7 +347,7 @@ const Welcome: React.FC = () => {
 <div className="text-[10px] font-label uppercase tracking-widest text-on-surface-variant">
                     © 2024 Aura Intelligence Systems. All analytical rights reserved.
                 </div>
-<div className="flex gap-8 text-[10px] font-label uppercase tracking-widest text-on-surface-variant">
+<div className="flex flex-wrap justify-center gap-4 md:gap-8 text-[10px] font-label uppercase tracking-widest text-on-surface-variant">
 <a className="hover:text-secondary" href="#">Privacy Protocol</a>
 <a className="hover:text-secondary" href="#">Terms of Service</a>
 </div>

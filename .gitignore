@@ -11,3 +11,10 @@ __pycache__/
 
 # Editor configurations
 .vscode/
+# Virtual Environments
+.venv/
+venv/
+
+# Environment Variables
+.env
+frontend/.env

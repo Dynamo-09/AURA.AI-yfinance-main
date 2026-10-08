@@ -82,6 +82,8 @@ const steps: TourStep[] = [
   }
 ];
 
+import { useAuth } from '../AuthProvider';
+
 export default function Walkthrough() {
   const [isVisible, setIsVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -89,16 +91,18 @@ export default function Walkthrough() {
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [boxRect, setBoxRect] = useState<DOMRect | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+  const { profile, updateProfile, loading } = useAuth();
 
   useEffect(() => {
-    const hasSeen = localStorage.getItem('hasSeenWalkthrough');
+    if (loading || !profile) return;
+    const hasSeen = profile.has_seen_walkthrough;
     if (!hasSeen) {
       setTimeout(() => {
         setIsVisible(true);
         setTimeout(() => setIsTransitioning(false), 300);
       }, 1500);
     }
-  }, []);
+  }, [profile, loading]);
 
   const updateRects = useCallback(() => {
     if (!isVisible) return;
@@ -210,7 +214,7 @@ export default function Walkthrough() {
 
   const closeTour = () => {
     setIsVisible(false);
-    localStorage.setItem('hasSeenWalkthrough', 'true');
+    updateProfile({ has_seen_walkthrough: true });
   };
 
   return (

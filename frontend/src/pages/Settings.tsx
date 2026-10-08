@@ -93,11 +93,12 @@ export default function Settings() {
   };
 
   const handleDeleteAccount = () => {
-    if (window.confirm("Are you sure you want to permanently delete your account and all portfolio data? This cannot be undone.")) {
-      setSavedMessage("Deleting account...");
+    if (window.confirm("Account deletion requires admin privileges. We will log you out for now.")) {
+      setSavedMessage("Logging out...");
       setTimeout(() => {
-        localStorage.clear();
-        navigate('/');
+        import('../supabase').then(({ supabase }) => {
+          supabase.auth.signOut().then(() => navigate('/login'));
+        });
       }, 1500);
     }
   };
@@ -132,8 +133,12 @@ export default function Settings() {
             </h2>
             
             <div className="flex items-center gap-6 mb-8">
-              <div onClick={triggerAvatarUpload} className="w-24 h-24 rounded-full border-2 border-secondary/30 overflow-hidden relative group cursor-pointer">
-                <img src={profilePicUrl} alt="Profile" className="w-full h-full object-cover group-hover:opacity-50 transition-opacity" />
+              <div onClick={triggerAvatarUpload} className="w-24 h-24 rounded-full border-2 border-secondary/30 overflow-hidden relative group cursor-pointer bg-surface-container-highest flex items-center justify-center">
+                {profilePicUrl ? (
+                  <img src={profilePicUrl} alt="Profile" className="w-full h-full object-cover group-hover:opacity-50 transition-opacity" />
+                ) : (
+                  <span className="material-symbols-outlined text-on-surface-variant text-[48px] group-hover:opacity-50 transition-opacity">person</span>
+                )}
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <span className="material-symbols-outlined text-white">photo_camera</span>
                 </div>

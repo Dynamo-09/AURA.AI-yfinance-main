@@ -103,7 +103,7 @@ export default function NeuralIntelligence() {
             </div>
 
             {/* Chart Legend/Metadata */}
-            <div className="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-outline-variant/10">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8 pt-8 border-t border-outline-variant/10">
               <div className="p-4 bg-surface-container/50 rounded-xl">
                 <p className="text-[10px] font-label text-on-surface-variant uppercase tracking-widest mb-1">Standard Deviation</p>
                 <p className="text-lg font-bold text-on-surface">1.42 <span className="text-secondary text-sm ml-1">+0.04</span></p>
