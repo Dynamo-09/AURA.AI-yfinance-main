@@ -462,9 +462,11 @@ export default function Layout() {
                     if (action === 'CHANGE_CURRENCY') setCurrency(payload);
                     if (action === 'NAVIGATE') navigate(payload);
                     if (action === 'DELETE_ACCOUNT') {
-                       supabase.auth.signOut().then(() => {
-                         setTheme('dark');
-                         navigate('/login');
+                       supabase.rpc('delete_user').then(() => {
+                         supabase.auth.signOut().then(() => {
+                           setTheme('dark');
+                           navigate('/login');
+                         });
                        });
                     }
                     if (action === 'LOGOUT') {

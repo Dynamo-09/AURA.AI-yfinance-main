@@ -93,13 +93,17 @@ export default function Settings() {
   };
 
   const handleDeleteAccount = () => {
-    if (window.confirm("Account deletion requires admin privileges. We will log you out for now.")) {
-      setSavedMessage("Logging out...");
-      setTimeout(() => {
-        import('../supabase').then(({ supabase }) => {
+    if (window.confirm("Are you sure you want to permanently delete your account and all portfolio data? This cannot be undone.")) {
+      setSavedMessage("Deleting account permanently...");
+      import('../supabase').then(({ supabase }) => {
+        supabase.rpc('delete_user').then(({ error }) => {
+          if (error) {
+            console.error("Error deleting account:", error);
+            setSavedMessage("Failed to delete account. Logging out instead...");
+          }
           supabase.auth.signOut().then(() => navigate('/login'));
         });
-      }, 1500);
+      });
     }
   };
 
